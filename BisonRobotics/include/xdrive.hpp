@@ -1,5 +1,17 @@
 #pragma once
+
+#ifdef SIM
+// --- Tiny stubs so this header compiles without PROS ---
+namespace pros {
+  enum motor_gearset_e_t { E_MOTOR_GEARSET_18 = 0 };
+  enum motor_encoder_units_e_t { E_MOTOR_ENCODER_DEGREES = 0 };
+}
+#else
 #include "api.h"
+#endif
+
+#include <cmath>
+#include <algorithm>
 
 namespace xdrive {
 
@@ -18,34 +30,31 @@ constexpr pros::motor_gearset_e_t  GEARSET       = pros::E_MOTOR_GEARSET_18;
 constexpr pros::motor_encoder_units_e_t ENCODERS = pros::E_MOTOR_ENCODER_DEGREES;
 
 // IMU (optional, for field-centric). Set to -1 to disable.
-constexpr int IMU_PORT = -1; //5
+constexpr int IMU_PORT = -1; // e.g., 5 to enable
 
 // Control options
-constexpr int  DEADBAND = 5;   // joystick deadband (0–127)
-constexpr bool SQUARE_INPUTS = true; // exponential feel for finer low-speed control
+constexpr int  DEADBAND = 5;
+constexpr bool SQUARE_INPUTS = true;
 
 // Init / utilities
 void initialize();
-double heading_deg(); // returns 0..360 if IMU present, otherwise 0
+double heading_deg(); // 0..360 if IMU present, else 0
 
-// Teleop drive
-// fwd: forward/back   (+forward), str: strafe right/left (+right), rot: rotate CW/CCW (+CW)
-// All in joystick range [-127..127]. If field_centric=true, IMU is used to rotate the (fwd,str) vector.
+// Teleop drive (joystick units -127..127)  +fwd, +right, +CW
 void drive(int fwd, int str, int rot, bool field_centric = false);
 
-// Simple blocking moves (open-loop). Uses built-in encoders; tune speeds for your bot.
-// NOTE: These are basic helpers for skills prototyping—not precise motion profiles.
-void drive_forward_deg(double wheel_deg, int speed = 100);   // +deg forward, -deg backward
-void strafe_right_deg(double wheel_deg, int speed = 100);    // +deg right,  -deg left
-void turn_cw_deg(double wheel_deg, int speed = 100);         // +deg CW,     -deg CCW
+// Simple blocking helpers (no-ops in SIM)
+void drive_forward_deg(double wheel_deg, int speed = 100);
+void strafe_right_deg(double wheel_deg, int speed = 100);
+void turn_cw_deg(double wheel_deg, int speed = 100);
 
-// Convenience: convert inches to wheel degrees (assuming 1:1, set your wheel diameter)
+// Convenience
 inline double inches_to_deg(double inches, double wheel_diam_in = 4.0) {
-  const double circ = wheel_diam_in * 3.14159265358979323846;
+  const double circ = wheel_diam_in * M_PI;
   return (inches / circ) * 360.0;
 }
 
-// Start/stop a background LCD telemetry task for the four drive motors.
+// LCD telemetry (does nothing in SIM)
 void start_telemetry();
 void stop_telemetry();
 
