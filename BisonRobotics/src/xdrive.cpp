@@ -17,6 +17,7 @@ static pros::Motor mFL(PORT_FL);
 static pros::Motor mFR(PORT_FR);
 static pros::Motor mBL(PORT_BL);
 static pros::Motor mBR(PORT_BR);
+static pros::Imu   imu(IMU_PORT);
 #endif
 
 static inline int deadband(int v) { return (std::abs(v) < DEADBAND) ? 0 : v; }
@@ -26,20 +27,38 @@ static inline double signed_square(int v) {
 }
 
 void initialize() {
-#ifndef SIM
-  mFL.set_gearing(GEARSET);  mFR.set_gearing(GEARSET);
-  mBL.set_gearing(GEARSET);  mBR.set_gearing(GEARSET);
-  mFL.set_encoder_units(ENCODERS); mFR.set_encoder_units(ENCODERS);
-  mBL.set_encoder_units(ENCODERS); mBR.set_encoder_units(ENCODERS);
-  mFL.set_reversed(REVERSED_FL); mFR.set_reversed(REVERSED_FR);
-  mBL.set_reversed(REVERSED_BL); mBR.set_reversed(REVERSED_BR);
+#ifndef SIM  
+  // Set each motor’s internal gear cartridge (e.g., green = 18:1)
+  mFL.set_gearing(GEARSET);
+  mFR.set_gearing(GEARSET);
+  mBL.set_gearing(GEARSET);
+  mBR.set_gearing(GEARSET);
+
+  // Set encoder units for each motor (degrees, ticks, or rotations)
+  mFL.set_encoder_units(ENCODERS);
+  mFR.set_encoder_units(ENCODERS);
+  mBL.set_encoder_units(ENCODERS);
+  mBR.set_encoder_units(ENCODERS);
+
+  // Reverse individual motors if needed so that
+  // positive power makes all wheels spin in the correct direction
+  mFL.set_reversed(REVERSED_FL);
+  mFR.set_reversed(REVERSED_FR);
+  mBL.set_reversed(REVERSED_BL);
+  mBR.set_reversed(REVERSED_BR);
+
 
   if (IMU_PORT > 0) {
-    imu.reset();
-    for (int t=0; t<250 && imu.is_calibrating(); ++t) pros::delay(10);
+    imu.reset();   // Begin calibration (zeroing the gyro/accelerometer)
+    // Wait up to ~2.5 seconds (250 × 10 ms) while the IMU calibrates
+    // During this time, the IMU measures bias and stabilizes its sensors
+    for (int t = 0; t < 250 && imu.is_calibrating(); ++t)
+      pros::delay(10);  // Small delay to avoid blocking the CPU
   }
 #endif
 }
+
+#endif
 
 double heading_deg() {
 #if defined(SIM)

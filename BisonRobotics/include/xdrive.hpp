@@ -26,11 +26,21 @@ constexpr bool REVERSED_FR = true;
 constexpr bool REVERSED_BL = false;
 constexpr bool REVERSED_BR = true;
 
-constexpr pros::motor_gearset_e_t  GEARSET       = pros::E_MOTOR_GEARSET_18;
+/*
+E_MOTOR_GEARSET_36  → Red cartridge (100 RPM, high torque)
+E_MOTOR_GEARSET_18  → Green cartridge (200 RPM, standard)
+E_MOTOR_GEARSET_06  → Blue cartridge (600 RPM, high speed)
+*/
+constexpr pros::motor_gearset_e_t GEARSET = pros::E_MOTOR_GEARSET_18; //green cart
+/*
+E_MOTOR_ENCODER_DEGREES   → motor shaft position in degrees
+E_MOTOR_ENCODER_ROTATIONS → position in full revolutions
+E_MOTOR_ENCODER_COUNTS    → raw internal counts (ticks)
+*/
 constexpr pros::motor_encoder_units_e_t ENCODERS = pros::E_MOTOR_ENCODER_DEGREES;
 
 // IMU (optional, for field-centric). Set to -1 to disable.
-constexpr int IMU_PORT = -1; // e.g., 5 to enable
+constexpr int IMU_PORT = -1; // =========== SET PORT ===========
 
 // Control options
 constexpr int  DEADBAND = 5;
