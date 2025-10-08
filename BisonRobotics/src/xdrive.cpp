@@ -55,6 +55,7 @@ void initialize() {
     for (int t = 0; t < 250 && imu.is_calibrating(); ++t)
       pros::delay(10);  // Small delay to avoid blocking the CPU
   }
+#endif
 }
 
 #endif
