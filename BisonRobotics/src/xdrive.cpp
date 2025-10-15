@@ -4,6 +4,18 @@
 
 namespace xdrive {
 
+#if IMU_PORT >= 0
+static double field_zero_raw = 0.0;  // stores raw heading at the moment you press A
+
+static inline double wrap180(double d) {
+  // wrap to (-180, 180]
+  while (d <= -180.0) d += 360.0;
+  while (d >   180.0) d -= 360.0;
+  return d;
+}
+#endif
+
+
 // --- Construct motors with just the port, then set options via setters ---
 #ifdef SIM
   // ---- SIM motors/IMU ----
@@ -20,10 +32,14 @@ static pros::Motor mBR(PORT_BR);
 static pros::Imu   imu(IMU_PORT);
 #endif
 
-static inline int deadband(int v) { return (std::abs(v) < DEADBAND) ? 0 : v; }
-static inline double signed_square(int v) {
+static inline int deadband(int v) {
+  return (std::abs(v) < DEADBAND) ? 0 : v;
+}
+
+static inline double expo_scale(int v) {
   const double s = v / 127.0;
-  return std::copysign(s * s, s) * 127.0;
+  const double mag = std::pow(std::abs(s), DRIVE_EXPONENT);
+  return std::copysign(mag, s) * 127.0;
 }
 
 void initialize() {
@@ -58,14 +74,19 @@ void initialize() {
 #endif
 }
 
-#endif
-
 double heading_deg() {
-#if defined(SIM)
+#if IMU_PORT >= 0
+  // Use the SAME API everywhere (get_heading is 0..360)
   return imu.get_heading();
 #else
-  if (IMU_PORT > 0 && !imu.is_calibrating()) return imu.get_heading();
   return 0.0;
+#endif
+}
+
+void zero_field_forward() {
+#if IMU_PORT >= 0
+  // Store the SAME quantity you’ll subtract later
+  field_zero_raw = imu.get_heading();
 #endif
 }
 
@@ -83,16 +104,16 @@ void drive(int fwd, int str, int rot, bool field_centric) {
   str = deadband(str);
   rot = deadband(rot);
 
-  double df = SQUARE_INPUTS ? signed_square(fwd) : fwd;
-  double ds = SQUARE_INPUTS ? signed_square(str) : str;
-  double dr = SQUARE_INPUTS ? signed_square(rot) : rot;
+  double df = expo_scale(fwd);
+  double ds = expo_scale(str);
+  double dr = expo_scale(rot);
 
   #ifndef SIM
     if (field_centric && IMU_PORT > 0 && !imu.is_calibrating()) {
-      const double th = heading_deg() * (M_PI / 180.0);
+      const double th = -heading_deg() * (M_PI / 180.0);
       const double c = std::cos(th), s = std::sin(th);
-      const double rs =  ds * c + df * s;   // new strafe
-      const double rf =  df * c - ds * s;   // new forward
+      const double rs =  ds * c + df * s;   // strafe
+      const double rf =  df * c - ds * s;   // forward
       ds = rs; df = rf;
     }
   #else

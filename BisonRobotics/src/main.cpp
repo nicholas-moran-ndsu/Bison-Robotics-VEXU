@@ -13,14 +13,6 @@ static Controller master(E_CONTROLLER_MASTER);
 static DriveMode    g_mode  = DriveMode::FieldCentric;
 static AutonRoutine g_auton = AutonRoutine::DoNothing;
 
-/** LLEMU center button demo */
-void on_center_button() {
-  static bool pressed = false;
-  pressed = !pressed;
-  if (pressed) lcd::set_text(2, "I was pressed!");
-  else         lcd::clear_line(2);
-}
-
 /** Runs once at boot */
 void initialize() {
   lcd::initialize();
@@ -68,8 +60,14 @@ void opcontrol() {
                  ? DriveMode::RobotCentric
                  : DriveMode::FieldCentric;
       master.rumble("."); // haptic confirm
-	  mech::teleop(master); //buttons -> intake/feeder/color
     }
+
+    if (master.get_digital_new_press(E_CONTROLLER_DIGITAL_A)) {
+    xdrive::zero_field_forward();
+    master.rumble(".."); // haptic confirm
+    }
+
+    mech::teleop(master); //buttons -> intake/feeder/color
 
     const int fwd = master.get_analog(E_CONTROLLER_ANALOG_LEFT_Y);   // forward/back
     const int str = master.get_analog(E_CONTROLLER_ANALOG_LEFT_X);   // strafe

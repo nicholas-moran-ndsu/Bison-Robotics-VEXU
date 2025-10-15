@@ -4,7 +4,7 @@
 // ---------- Ports ---------- =============== SET PORTS =================
 constexpr int PORT_INTAKE  = 5;
 constexpr int PORT_FEEDER  = 6;
-constexpr int PORT_OPTICAL = 7;  // VEX Optical Sensor
+constexpr int PORT_OPTICAL = 19;  // VEX Optical Sensor
 
 // ---------- Motor options ----------
 constexpr auto DRIVE_GEARSET = pros::E_MOTOR_GEARSET_18; // if needed
