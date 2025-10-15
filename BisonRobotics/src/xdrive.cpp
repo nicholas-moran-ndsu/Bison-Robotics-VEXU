@@ -207,6 +207,8 @@ void turn_cw_deg(double wheel_deg, int speed) {
 }
 
 // ---------- LCD TELEMETRY ----------
+
+/*
 #ifndef SIM
 static pros::Task* telemetry_task = nullptr;
 #endif
@@ -274,5 +276,7 @@ void stop_telemetry() {
   }
   #endif
 }
+
+*/
 
 } // namespace xdrive

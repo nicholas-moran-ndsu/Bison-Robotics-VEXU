@@ -13,12 +13,11 @@ static Controller master(E_CONTROLLER_MASTER); // decalres single controller
 /** Runs once at boot */
 void initialize() {
   lcd::initialize();
-  lcd::print(0, "X-Drive Ready");
   
   mech::initialize();  
   xdrive::initialize();      // motors + IMU calibration
   selector::init(master);          // bring up the pre-match selector UI
-  xdrive::start_telemetry(); // optional HUD on the Brain
+  //xdrive::start_telemetry(); // optional HUD on the Brain
 }
 
 /** Idle during disable */
