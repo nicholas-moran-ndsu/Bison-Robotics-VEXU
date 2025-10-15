@@ -1,8 +1,7 @@
 #pragma once
 #include <cstdint>
+#include "util/types.hpp"
 
-enum class DriveMode : uint8_t { FieldCentric, RobotCentric };
-enum class AutonRoutine : uint8_t { DoNothing, NearSide, FarSide, Skills };
 
 namespace selector {
   void init();

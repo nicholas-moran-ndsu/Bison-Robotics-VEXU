@@ -1,9 +1,6 @@
 #pragma once
 #include <cstdint>
-
-// Keep your selector enums:
-enum class DriveMode : uint8_t { FieldCentric, RobotCentric };
-enum class AutonRoutine : uint8_t { DoNothing, NearSide, FarSide, Skills };
+#include "util/types.hpp"
 
 // ===================== AUTON API =====================
 namespace autons {
