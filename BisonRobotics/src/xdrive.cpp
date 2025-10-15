@@ -4,17 +4,16 @@
 
 namespace xdrive {
 
-#if IMU_PORT >= 0
-static double field_zero_raw = 0.0;  // stores raw heading at the moment you press A
+#if IMU_PORT >= 0 // only compile IMU-related code if IMU_PORT is valid
 
-static inline double wrap180(double d) {
+// Wraps angle to (-180, 180] instead of [0, 360)
+static inline double wrap180(double d) { 
   // wrap to (-180, 180]
   while (d <= -180.0) d += 360.0;
   while (d >   180.0) d -= 360.0;
   return d;
 }
 #endif
-
 
 // --- Construct motors with just the port, then set options via setters ---
 #ifdef SIM
@@ -32,16 +31,19 @@ static pros::Motor mBR(PORT_BR);
 static pros::Imu   imu(IMU_PORT);
 #endif
 
+//deadband: if within deadband, return 0; else return original value
 static inline int deadband(int v) {
   return (std::abs(v) < DEADBAND) ? 0 : v;
 }
 
+// Apply exponential scaling to joystick input for finer low-speed control
 static inline double expo_scale(int v) {
-  const double s = v / 127.0;
-  const double mag = std::pow(std::abs(s), DRIVE_EXPONENT);
-  return std::copysign(mag, s) * 127.0;
+  const double s = v / 127.0;                                   // scale to -1.0..1.0     
+  const double mag = std::pow(std::abs(s), DRIVE_EXPONENT);     //sets magnitude to abs value ^ exponent
+  return std::copysign(mag, s) * 127.0;                         // restore sign and scale back to -127..127
 }
 
+// Initialize motors + IMU (call once at startup)
 void initialize() {
 #ifndef SIM  
   // Set each motor’s internal gear cartridge (e.g., green = 18:1)
@@ -63,15 +65,8 @@ void initialize() {
   mBL.set_reversed(REVERSED_BL);
   mBR.set_reversed(REVERSED_BR);
 
-
-  if (IMU_PORT > 0) {
-    imu.reset();   // Begin calibration (zeroing the gyro/accelerometer)
-    // Wait up to ~2.5 seconds (250 × 10 ms) while the IMU calibrates
-    // During this time, the IMU measures bias and stabilizes its sensors
-    for (int t = 0; t < 250 && imu.is_calibrating(); ++t)
-      pros::delay(10);  // Small delay to avoid blocking the CPU
-  }
-#endif
+  // IMU calibration (zeroing gyro/accelerometer)
+  zero_field_forward();
 }
 
 double heading_deg() {
@@ -83,10 +78,15 @@ double heading_deg() {
 #endif
 }
 
+// IMU calibration (zeroing gyro/accelerometer)
 void zero_field_forward() {
-#if IMU_PORT >= 0
-  // Store the SAME quantity you’ll subtract later
-  field_zero_raw = imu.get_heading();
+  if (IMU_PORT > 0) {
+    imu.reset();   // Begin calibration
+    // Wait up to ~2.5 seconds (250 × 10 ms) while the IMU calibrates
+    // During this time, the IMU measures bias and stabilizes its sensors
+    for (int t = 0; t < 250 && imu.is_calibrating(); ++t)
+      pros::delay(10);  // Small delay to avoid blocking the CPU
+  }
 #endif
 }
 
@@ -99,15 +99,17 @@ static void normalize(double &fl, double &fr, double &bl, double &br) {
   }
 }
 
+// Main drive function
 void drive(int fwd, int str, int rot, bool field_centric) {
-  fwd = deadband(fwd);
-  str = deadband(str);
-  rot = deadband(rot);
+  fwd = deadband(fwd);  // forward
+  str = deadband(str);  // strafe
+  rot = deadband(rot);  // rotate
 
-  double df = expo_scale(fwd);
-  double ds = expo_scale(str);
-  double dr = expo_scale(rot);
+  double df = expo_scale(fwd); // forward
+  double ds = expo_scale(str); // strafe
+  double dr = expo_scale(rot); // rotate
 
+  // Apply field-centric transform
   #ifndef SIM
     if (field_centric && IMU_PORT > 0 && !imu.is_calibrating()) {
       const double th = -heading_deg() * (M_PI / 180.0);
@@ -127,7 +129,7 @@ void drive(int fwd, int str, int rot, bool field_centric) {
     }
   #endif
 
-  // X-drive kinematics: +df=forward, +ds=right, +dr=CW
+  // robot centric X-drive kinematics: +df=forward, +ds=right, +dr=Clockwise
   double fl = df + ds + dr;
   double fr = df - ds - dr;
   double bl = df - ds + dr;
@@ -142,12 +144,16 @@ void drive(int fwd, int str, int rot, bool field_centric) {
 }
 
 // ---- Simple open-loop autonomous helpers ----
+
+// Reset all motor positions to zero
 static void reset_positions() {
   #ifndef SIM
   mFL.tare_position(); mFR.tare_position();
   mBL.tare_position(); mBR.tare_position();
   #endif
 }
+
+// Move all 4 wheels relative to current position
 static void move_all_relative(double fl, double fr, double bl, double br, int speed) {
   #ifndef SIM
   mFL.move_relative(fl, speed);
@@ -156,6 +162,8 @@ static void move_all_relative(double fl, double fr, double bl, double br, int sp
   mBR.move_relative(br, speed);
   #endif
 }
+
+// Return true if any motor is still busy moving to target (within tol)
 static bool any_busy(double target_deg, double tol = 5.0) {
   #ifndef SIM
   const double T = std::max(0.0, std::abs(target_deg) - tol);
@@ -168,6 +176,7 @@ static bool any_busy(double target_deg, double tol = 5.0) {
 #endif
 }
 
+// Move in a given direction (blocking)
 void drive_forward_deg(double wheel_deg, int speed) {
   reset_positions();
   move_all_relative(wheel_deg, wheel_deg, wheel_deg, wheel_deg, speed);
@@ -176,6 +185,8 @@ void drive_forward_deg(double wheel_deg, int speed) {
   while (any_busy(wheel_deg)) pros::delay(10);
   #endif
 }
+
+// strafe right is + on left wheels, - on right wheels
 void strafe_right_deg(double wheel_deg, int speed) {
   reset_positions();
   move_all_relative(+wheel_deg, -wheel_deg, -wheel_deg, +wheel_deg, speed);
@@ -184,6 +195,8 @@ void strafe_right_deg(double wheel_deg, int speed) {
   while (any_busy(wheel_deg)) pros::delay(10);
   #endif
 }
+
+// turn clockwise is + on front left & back left, - on front right & back right
 void turn_cw_deg(double wheel_deg, int speed) {
   reset_positions();
   move_all_relative(+wheel_deg, -wheel_deg, +wheel_deg, -wheel_deg, speed);
@@ -194,10 +207,13 @@ void turn_cw_deg(double wheel_deg, int speed) {
 }
 
 // ---------- LCD TELEMETRY ----------
+
+/*
 #ifndef SIM
 static pros::Task* telemetry_task = nullptr;
 #endif
 
+// Telemetry task: periodically update the LCD with motor voltages + directions
 #ifndef SIM
 static void telemetry_loop(void*) {
   pros::lcd::initialize(); // safe to call if already initialized
@@ -241,6 +257,7 @@ static void telemetry_loop(void*) {
 }
 #endif
 
+// Start telemetry task (call once at startup)
 void start_telemetry() {
   #ifndef SIM
   if (!telemetry_task) {
@@ -249,6 +266,7 @@ void start_telemetry() {
   #endif
 }
 
+// Stop telemetry task (call once at shutdown)
 void stop_telemetry() {
   #ifndef SIM
   if (telemetry_task) {
@@ -258,5 +276,7 @@ void stop_telemetry() {
   }
   #endif
 }
+
+*/
 
 } // namespace xdrive
