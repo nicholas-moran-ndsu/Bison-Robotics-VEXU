@@ -1,7 +1,6 @@
 #pragma once
 
 #ifdef SIM
-// --- Tiny stubs so this header compiles without PROS ---
 namespace pros {
   enum motor_gearset_e_t { E_MOTOR_GEARSET_18 = 0 };
   enum motor_encoder_units_e_t { E_MOTOR_ENCODER_DEGREES = 0 };
@@ -21,10 +20,10 @@ constexpr int PORT_FR = 10;   // Front-Right motor port
 constexpr int PORT_BL = 11;   // Back-Left   motor port
 constexpr int PORT_BR = 20;   // Back-Right  motor port
 
-constexpr bool REVERSED_FL = false;  //f
-constexpr bool REVERSED_FR = true;   //t
-constexpr bool REVERSED_BL = false;  //f
-constexpr bool REVERSED_BR = true;   //t
+constexpr bool REVERSED_FL = false;
+constexpr bool REVERSED_FR = true;
+constexpr bool REVERSED_BL = false;
+constexpr bool REVERSED_BR = true;
 
 /*
 E_MOTOR_GEARSET_36  → Red cartridge (100 RPM, high torque)
@@ -43,7 +42,7 @@ constexpr pros::motor_encoder_units_e_t ENCODERS = pros::E_MOTOR_ENCODER_DEGREES
 constexpr int IMU_PORT = 16; // =========== SET PORT ===========
 
 // Control options
-constexpr int  DEADBAND = 2;
+constexpr int  DEADBAND = 2;           // joystick deadband (0..127)
 constexpr double DRIVE_EXPONENT = 2.5; // Drive response curve 
 
 // Init / utilities
