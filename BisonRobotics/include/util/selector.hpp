@@ -1,18 +1,22 @@
 #pragma once
 #include <cstdint>
 #include "util/types.hpp"
+#include "pros/misc.h"
+#include "pros/apix.h"
 
 
 namespace selector {
-  void init();
+  // Boot-time setup (no lcd::initialize here!)
+  void init(pros::Controller& master);
 
-  void ui_loop_once();
+  // Pre-match poll: handles button presses + updates screens
+  void ui_loop_once(pros::Controller& master);
 
-  // Current mode
-  DriveMode drive_mode();
+  // Access current selections (pre-lock)
+  DriveMode    drive_mode();
   AutonRoutine auton();
 
-  // Pretty names for screens/logs
+  // Pretty names
   const char* drive_mode_name(DriveMode m);
   const char* auton_name(AutonRoutine a);
 }

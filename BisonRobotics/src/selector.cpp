@@ -1,138 +1,123 @@
 #include "util/selector.hpp"
-#include "pros/apix.h"   // PROS LCD + Controller APIs
-#include <cstddef>       // std::size_t for array size if needed
+#include "pros/llemu.hpp"   // Brain LCD interface
+#include "pros/misc.h"      // Controller + buttons
+#include "pros/apix.h"      // Includes all PROS API headers
 
-using namespace pros;
+using namespace pros;  // convenience alias for pros::
 
-// ------------------------ Internal state ------------------------
-// Defaults for power-on: Field-centric drive and "DoNothing" auton.
+// ============================================================================
+//  Selector Module
+//  ----------------
+//  Handles all pre-match UI logic for selecting drive mode and auton routine.
+//  - User interacts via Controller (D-pad and buttons).
+//  - Displays current selections on both Brain LCD and Controller screen.
+//  - Stores the choices internally (static variables) until locked in main.
+// ============================================================================
+
+// Default drive mode and auton (used if no selection is made before match)
 static DriveMode    g_mode  = DriveMode::FieldCentric;
 static AutonRoutine g_auton = AutonRoutine::DoNothing;
 
-// ------------------------ Naming helpers ------------------------
-// Human-readable names for UI/debug. We keep an array of auton names
-// whose order MUST match the enum order (DoNothing=0, NearSide=1, ...).
-// This makes it trivial to add new autons later by appending to both.
+// List of human-readable auton names.
+// ⚠️ The order *must* match the AutonRoutine enum defined in types.hpp.
 static const char* AUTON_NAMES[] = {"DoNothing", "Near", "Far", "Skills"};
 
-// Number of entries (compile-time). If you add more names above,
-// this updates automatically and keeps wrap-around correct.
+// Number of auton options (computed automatically)
 static constexpr int kAutonCount =
   static_cast<int>(sizeof(AUTON_NAMES) / sizeof(AUTON_NAMES[0]));
 
-// Optional sanity check: verifies the last enum value equals the last
-// index in AUTON_NAMES. If you add a new enum at the end but forget
-// to update AUTON_NAMES, this assert will remind you at compile time.
+// Compile-time safety check: enum and name array must stay aligned.
+// If you add an auton to the enum but forget to update this array,
+// this assertion will fail at compile time.
 static_assert(static_cast<int>(AutonRoutine::Skills) == kAutonCount - 1,
-              "Update AUTON_NAMES or the AutonRoutine enum order!");
+              "Update AUTON_NAMES or AutonRoutine enum order!");
 
+
+// Converts a DriveMode enum to a display string.
 const char* selector::drive_mode_name(DriveMode m) {
   return (m == DriveMode::FieldCentric) ? "Field-Centric" : "Robot-Centric";
 }
 
+// Converts an AutonRoutine enum to a display string.
 const char* selector::auton_name(AutonRoutine a) {
-  const int i = static_cast<int>(a);
-  // Defensive guard: if enum and names ever get out of sync, avoid UB.
-  if (i < 0 || i >= kAutonCount) return "?";
-  return AUTON_NAMES[i];
+  int i = static_cast<int>(a);
+  return (i >= 0 && i < kAutonCount) ? AUTON_NAMES[i] : "?";
 }
 
-
-// ------------------------ UI lifecycle ------------------------
-// Call once at boot. Brings up Brain LCD and prints usage hints.
-void selector::init() {
-  lcd::initialize();
+// -----------------------------------------------------------------------------
+// init()
+// Called once from main.cpp (after pros::lcd::initialize()) to display usage
+// hints and current defaults on both the Brain screen and Controller.
+// -----------------------------------------------------------------------------
+void selector::init(Controller & master) {
+  // Brain LCD quick instructions
   lcd::print(0, "Selector ready");
   lcd::print(1, "L/R: Drive   A: Auton");
   lcd::print(2, "Y toggles drive in teleop");
 
   // Controller hints
-  static pros::Controller master(pros::E_CONTROLLER_MASTER);
   master.clear();
   master.print(0, 0, "< > drive   A auton");
   master.print(1, 0, "Y toggles in teleop");
 
-  // Optional: show the defaults immediately
-  lcd::print(4, "Drive: %s", selector::drive_mode_name(g_mode));
-  lcd::print(5, "Auton: %s", selector::auton_name(g_auton));
+  // Show the current default values
+  lcd::print(4, "Drive: %s", drive_mode_name(g_mode));
+  lcd::print(5, "Auton: %s", auton_name(g_auton));
   master.print(2, 0, "D:%s A:%s          ",
-               selector::drive_mode_name(g_mode),
-               selector::auton_name(g_auton));
+               drive_mode_name(g_mode),
+               auton_name(g_auton));
 }
 
-// Poll once and refresh the screens. Call this repeatedly during
-// competition_initialize() (or any pre-enable loop) e.g. every 10ms.
-void selector::ui_loop_once() {
-  static pros::Controller master(pros::E_CONTROLLER_MASTER);
-
-  // ---- Drive mode select (D-Pad L/R) ----
+// -----------------------------------------------------------------------------
+// ui_loop_once()
+// Called repeatedly during competition_initialize().
+// Each call polls for new button presses and updates the displays accordingly.
+// Use get_digital_new_press() so each button press is registered only once.
+// -----------------------------------------------------------------------------
+void selector::ui_loop_once(Controller & master) {
+  // ---- Drive mode selection (D-pad left/right) ----
   const bool flipDrive =
-      master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_LEFT) ||
-      master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_RIGHT);
+      master.get_digital_new_press(E_CONTROLLER_DIGITAL_LEFT) ||
+      master.get_digital_new_press(E_CONTROLLER_DIGITAL_RIGHT);
 
   if (flipDrive) {
+    // Toggle between Field and Robot centric
     g_mode = (g_mode == DriveMode::FieldCentric)
                ? DriveMode::RobotCentric
                : DriveMode::FieldCentric;
   }
 
-  // ---- Auton select (A button cycles) ----
-  if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A)) {
+  // ---- Auton selection (A button cycles) ----
+  if (master.get_digital_new_press(E_CONTROLLER_DIGITAL_A)) {
+    // Increment auton index and wrap around at the end
     int next = static_cast<int>(g_auton) + 1;
-    g_auton = static_cast<AutonRoutine>(next % kAutonCount);  // wrap-around
+    g_auton = static_cast<AutonRoutine>(next % kAutonCount);
   }
 
-  // ---- Brain LCD ----
-  pros::lcd::print(4, "Drive: %s", selector::drive_mode_name(g_mode));
-  pros::lcd::print(5, "Auton: %s", selector::auton_name(g_auton));
+  // ---- Display updates (Brain + Controller) ----
+  lcd::print(4, "Drive: %s", drive_mode_name(g_mode));
+  lcd::print(5, "Auton: %s", auton_name(g_auton));
 
-  // ---- Controller (0–2 only) ----
-  // Put both on line 2; pad with spaces to clear leftovers.
+  // Controller line 2 (0-based) combines both values in one line
   master.print(2, 0, "D:%s A:%s          ",
-               selector::drive_mode_name(g_mode),
-               selector::auton_name(g_auton));
-  // (No line 3 prints!)
+               drive_mode_name(g_mode),
+               auton_name(g_auton));
 }
 
-// ------------------------ Accessors ------------------------
+
+// -----------------------------------------------------------------------------
+// Accessors (used by main.cpp to read selections)
+// -----------------------------------------------------------------------------
 DriveMode    selector::drive_mode() { return g_mode; }
 AutonRoutine selector::auton()      { return g_auton; }
 
-// ------------------------ Extending the selector ------------------------
-/*
-How to add more autonomous routines later:
 
-1) In selector.hpp, append a new enumerator at the END, e.g.:
-     enum class AutonRoutine : uint8_t { DoNothing, NearSide, FarSide, Skills, CenterRush };
-
-2) In this file:
-   - Append "CenterRush" to AUTON_NAMES in the SAME order.
-   - You do NOT need to change kAutonCount; it's computed from the array.
-   - The static_assert will continue to verify alignment.
-
-3) In your autons.cpp switch, add a case:
-     case AutonRoutine::CenterRush: /* ... * / break;
-
-Optional: If you prefer not to rely on enum order, you can store a
-vector/array of {AutonRoutine, const char* name} pairs and cycle the
-*index* over that list instead of casting integers, but the simple
-order-matching approach above is perfectly fine for VRC/VEXU robots.
-*/
-
-/*
-Key-repeat behavior (optional):
-
-If you WANT holding a button to keep cycling (instead of single taps),
-replace get_digital_new_press(...) with get_digital(...), and add a
-repeat delay/timer so it doesn't scroll too fast. Example skeleton:
-
-  static uint32_t lastRepeat = 0;
-  const bool held = master.get_digital(E_CONTROLLER_DIGITAL_A);
-  if (held && (millis() - lastRepeat > 200)) {
-    // advance selection
-    lastRepeat = millis();
-  }
-
-Edge-triggered new_press is recommended on-field to prevent accidental
-multiple changes due to button bounce or stress taps.
-*/
+// -----------------------------------------------------------------------------
+// How to extend this file later:
+// -----------------------------------------------------------------------------
+// • Add new AutonRoutine enums in types.hpp, e.g.  CenterRush, Defense, etc.
+// • Append corresponding names to AUTON_NAMES[] in the same order.
+// • The static_assert above ensures you won’t forget to keep them aligned.
+// • You can add more button logic here (e.g. B to go backward through autons).
+// • Avoid loops/delays here — keep this function quick for competition safety.
+// -----------------------------------------------------------------------------
