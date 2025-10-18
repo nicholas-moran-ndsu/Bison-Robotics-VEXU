@@ -45,3 +45,25 @@ TEMPLATE_FILES=$(INCDIR)/$(LIBNAME)/*.h $(INCDIR)/$(LIBNAME)/*.hpp
 ################################################################################
 ########## Nothing below this line should be edited by typical users ###########
 -include ./common.mk
+
+# ===== X-Drive build profiles =====
+.PHONY: xdrive4 xdrive12 xdrive4_upload xdrive12_upload
+
+# Build 4-motor config (no upload)
+xdrive4:
+	@echo "=== Building XDRIVE4 (4 motors) ==="
+	@$(MAKE) EXTRA_CXXFLAGS+=' -DXDRIVE4 ' quick
+
+# Build 12-motor config (no upload)
+xdrive12:
+	@echo "=== Building XDRIVE12 (12 motors) ==="
+	@$(MAKE) EXTRA_CXXFLAGS+=' -DXDRIVE12 ' quick
+
+# Build + upload helpers (pick slots you prefer)
+xdrive4_upload:
+	@$(MAKE) EXTRA_CXXFLAGS+=' -DXDRIVE4 ' quick
+	@pros upload --slot 4
+
+xdrive12_upload:
+	@$(MAKE) EXTRA_CXXFLAGS+=' -DXDRIVE12 ' quick
+	@pros upload --slot 5
