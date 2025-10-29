@@ -5,25 +5,25 @@
 #include "pros/misc.h"
 #include "pros/llemu.hpp"
 #include "mech.hpp"
+#include "odom_sys.hpp"
 
 using namespace pros; //saves time in typing pros::
 
 static Controller master(E_CONTROLLER_MASTER); // decalres single controller
 
-/** Runs once at boot */
+// ================== Initialization ===================
 void initialize() {
   lcd::initialize();
-  
   mech::initialize();  
-  xdrive::initialize();      // motors + IMU calibration
-  selector::init(master);          // bring up the pre-match selector UI
+  xdrive::initialize();        // motors + IMU calibration
+  selector::init(master);      // bring up the pre-match selector UI
   //xdrive::start_telemetry(); // optional HUD on the Brain
 }
 
-/** Idle during disable */
+// ================== Disabled ===================
 void disabled() {}
 
-/** Pre-match window: choose drive mode + auton */
+// =================== Competition Init ===================
 void competition_initialize() {
   // Give yourself ~6s to pick. (You can also loop while competition::is_disabled())
   const uint32_t t0 = millis();
@@ -32,18 +32,23 @@ void competition_initialize() {
     delay(10);
   }
 
+  // Initialize odometry hardware and set starting pose
+  odom_sys::init_once_for_auton();
+  odom_sys::reset_pose({0.0, 0.0, 0.0});   // ← set your tile pose here
+
   // Lock (just report what was picked)
   lcd::print(6, "Locked: %s | %s",
-             selector::drive_mode_name(selector::drive_mode()),
-             selector::auton_name(selector::auton()));
+  selector::drive_mode_name(selector::drive_mode()),
+  selector::auton_name(selector::auton()));
 }
 
-/** Autonomous: delegate to your selected routine */
+// =================== Autonomous =====================
 void autonomous() {
+  // Run your selected autonomous routine
   autons::run(selector::auton());
 }
 
-/** Driver control */
+// =================== Operator Control ===================
 void opcontrol() {
   // Take the locked picks as our starting point
   DriveMode drive_mode = selector::drive_mode();
@@ -52,8 +57,8 @@ void opcontrol() {
     // In-match toggle Field<->Robot with Y
     if (master.get_digital_new_press(E_CONTROLLER_DIGITAL_Y)) {
       drive_mode = (drive_mode == DriveMode::FieldCentric)
-                     ? DriveMode::RobotCentric
-                     : DriveMode::FieldCentric;
+        ? DriveMode::RobotCentric
+        : DriveMode::FieldCentric;
       master.rumble(".");
     }
 
