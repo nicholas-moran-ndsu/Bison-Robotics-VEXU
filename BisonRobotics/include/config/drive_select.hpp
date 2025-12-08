@@ -3,7 +3,7 @@
 // Pick one drive layout at compile-time
 // You can set this here or pass -DXDRIVE4 / -DXDRIVE12 when building
 #if !defined(XDRIVE4) && !defined(XDRIVE12)
-  #define XDRIVE12 // default build
+  #define XDRIVE4 // default build
 #endif
 
 #if defined(XDRIVE4)
