@@ -18,6 +18,9 @@ void initialize() {
   xdrive::initialize();        // motors + IMU calibration
   selector::init(master);      // bring up the pre-match selector UI
   //xdrive::start_telemetry(); // optional HUD on the Brain
+
+  printf("[INIT] hello from initialize()\n");
+  fflush(stdout);
 }
 
 // ================== Disabled ===================
@@ -27,7 +30,8 @@ void disabled() {}
 void competition_initialize() {
   // Give yourself ~6s to pick. (You can also loop while competition::is_disabled())
   const uint32_t t0 = millis();
-  while (millis() - t0 < 6000) {
+  // Poll selector UI until match starts or time runs out
+  while (competition::is_disabled() && millis() - t0 < 6000)  {
     selector::ui_loop_once(master);  // D-pad L/R flips drive mode, A cycles auton
     delay(10);
   }
@@ -52,6 +56,16 @@ void autonomous() {
 void opcontrol() {
   // Take the locked picks as our starting point
   DriveMode drive_mode = selector::drive_mode();
+
+  // Make sure odom is created and sensors are zeroed when driver control starts.
+  odom_sys::init_once_for_auton();
+  // Start the 100 Hz updater task (or do manual updates in this loop)
+  odom_sys::start_updater_task();
+  // Optional: start a raw data logger task
+  odom_sys::start_raw_logger_task();
+
+  // (optional) One-time banner so you know opcontrol is active
+  printf("[OP] odom updater + raw logger started\n"); fflush(stdout);
 
   while (true) {
     // In-match toggle Field<->Robot with Y
@@ -78,6 +92,13 @@ void opcontrol() {
     //xdrive
     xdrive::drive(fwd, str, rot, drive_mode == DriveMode::FieldCentric);
 
-    delay(10);
+    // Optional alive print every 500 ms
+    static int tick = 0;
+    if ((++tick % 50) == 0) { // about every 500 ms
+      printf("[OP] alive t=%u ms\n", (unsigned)pros::millis());
+      fflush(stdout);
+    }
+
+    pros::delay(10);
   }
 }

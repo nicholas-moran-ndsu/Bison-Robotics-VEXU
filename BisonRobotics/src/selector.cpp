@@ -76,6 +76,7 @@ void selector::init(Controller & master) {
 // -----------------------------------------------------------------------------
 void selector::ui_loop_once(Controller & master) {
   // ---- Drive mode selection (D-pad left/right) ----
+  static uint32_t last_print = 0;
   const bool flipDrive =
       master.get_digital_new_press(E_CONTROLLER_DIGITAL_LEFT) ||
       master.get_digital_new_press(E_CONTROLLER_DIGITAL_RIGHT);
@@ -98,10 +99,13 @@ void selector::ui_loop_once(Controller & master) {
   lcd::print(4, "Drive: %s", drive_mode_name(g_mode));
   lcd::print(5, "Auton: %s", auton_name(g_auton));
 
-  // Controller line 2 (0-based) combines both values in one line
-  master.print(2, 0, "D:%s A:%s          ",
-               drive_mode_name(g_mode),
-               auton_name(g_auton));
+  // Controller: throttle to ~10 Hz
+  if (millis() - last_print >= 100) {
+    master.print(2, 0, "D:%s A:%s          ",
+                 drive_mode_name(g_mode),
+                 auton_name(g_auton));
+    last_print = millis();
+  }
 }
 
 

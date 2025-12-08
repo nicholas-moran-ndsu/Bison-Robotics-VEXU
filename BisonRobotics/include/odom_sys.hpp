@@ -13,4 +13,17 @@ namespace odom_sys {
 
   // Get the latest pose estimate
   Pose pose();
-}
+
+  // spawn the cout debug task (10 Hz)
+  void start_debug();    
+
+  // optional runtime toggle  
+  void set_debug_enabled(bool); 
+
+  // runs update_from_hardware() at ~100 Hz
+  void start_updater_task(); 
+
+  // optional: start a raw data logger task
+  void start_raw_logger_task();
+
+} // namespace odom_sys
