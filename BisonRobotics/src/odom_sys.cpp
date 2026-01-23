@@ -3,9 +3,9 @@
 #include "pros/imu.hpp"
 #include "pros/rotation.hpp"
 #include <cmath>
+#include "xdrive.hpp"
 
 // ---- Hardware objects ----
-static pros::Imu g_imu(IMU_PORT);
 static pros::Rotation g_trackingwheel_par(TRACKING_WHEEL_PARALLEL_PORT);
 static pros::Rotation g_trackingwheel_perp(TRACKING_WHEEL_PERPENDICULAR_PORT);
 
@@ -19,10 +19,6 @@ static double last_par_deg = 0.0, last_perp_deg = 0.0;
 
 // Initialize encoders and IMU (run once at start of auton)
 void odom_sys::init_once_for_auton(){
-  // Calibrate IMU only for auton
-  g_imu.reset();
-  while (g_imu.is_calibrating()) pros::delay(10);
-
   // Zero rotation sensors
   g_trackingwheel_par.reset_position();
   g_trackingwheel_perp.reset_position();
@@ -69,13 +65,15 @@ void odom_sys::update_from_hardware(){
     // Convert to inches
     const double dPar_in  = deg_to_in(dPar_deg);
     const double dPerp_in = deg_to_in(dPerp_deg);
-    // Read heading from IMU (convert to radians)
-    const double heading  = g_imu.get_rotation() * (M_PI/180.0);
+    // Read heading from IMU
+    const double imu_deg = xdrive::heading_deg();
+    const double imu_rad = imu_deg * M_PI / 180.0;
     // Update odometry math
-    g_odom->update(dPar_in, dPerp_in, heading);
+    g_odom->update(dPar_in, dPerp_in, imu_rad);
 }
 
 // Get the latest pose estimate
 Pose odom_sys::pose(){ 
     return g_odom->pose(); 
 }
+

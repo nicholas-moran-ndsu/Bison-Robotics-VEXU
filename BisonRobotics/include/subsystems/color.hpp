@@ -1,5 +1,6 @@
 #pragma once
-#include "subsystems/config.hpp"
+#include "mech.hpp"
+#include "config/drive_select.hpp"
 
 namespace color {
   void initialize();

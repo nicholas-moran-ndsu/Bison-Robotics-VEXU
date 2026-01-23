@@ -47,12 +47,17 @@ TEMPLATE_FILES=$(INCDIR)/$(LIBNAME)/*.h $(INCDIR)/$(LIBNAME)/*.hpp
 -include ./common.mk
 
 # ===== X-Drive build profiles =====
-.PHONY: xdrive4 xdrive12 xdrive4_upload xdrive12_upload
+.PHONY: xdrive4 xdrive8 xdrive12 xdrive4_upload xdrive8_blue_upload xdrive8_red_upload xdrive12_upload
 
 # Build 4-motor config (no upload)
 xdrive4:
 	@echo "=== Building XDRIVE4 (4 motors) ==="
 	@$(MAKE) EXTRA_CXXFLAGS+=' -DXDRIVE4 ' quick
+
+# Build 8-motor config (no upload)
+xdrive8:
+	@echo "=== Building XDRIVE8 (8 motors) ==="
+	@$(MAKE) EXTRA_CXXFLAGS+=' -DXDRIVE8 -Wall -Wextra -Wunused ' quick
 
 # Build 12-motor config (no upload)
 xdrive12:
@@ -63,7 +68,17 @@ xdrive12:
 xdrive4_upload:
 	@$(MAKE) EXTRA_CXXFLAGS+=' -DXDRIVE4 ' quick
 	@pros upload --slot 4
-
+# Build + upload 8-motor blue alliance
+xdrive8_blue_upload:
+	@$(MAKE) clean
+	@$(MAKE) EXTRA_CXXFLAGS+=' -DXDRIVE8 -DALLIANCE_BLUE ' quick
+	@pros upload --slot 1
+# Build + upload 8-motor red alliance
+xdrive8_red_upload:
+	@$(MAKE) clean
+	@$(MAKE) EXTRA_CXXFLAGS+=' -DXDRIVE8 -DALLIANCE_RED ' quick
+	@pros upload --slot 2
+# Build + upload 12-motor config
 xdrive12_upload:
 	@$(MAKE) EXTRA_CXXFLAGS+=' -DXDRIVE12 ' quick
-	@pros upload --slot 5
+	@pros upload --slot 6

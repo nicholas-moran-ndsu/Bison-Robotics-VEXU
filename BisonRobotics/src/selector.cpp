@@ -16,11 +16,17 @@ using namespace pros;  // convenience alias for pros::
 
 // Default drive mode and auton (used if no selection is made before match)
 static DriveMode    g_mode  = DriveMode::FieldCentric;
-static AutonRoutine g_auton = AutonRoutine::DoNothing;
+static AutonRoutine g_auton = AutonRoutine::Red_Left;
 
 // List of human-readable auton names.
 // ⚠️ The order *must* match the AutonRoutine enum defined in types.hpp.
-static const char* AUTON_NAMES[] = {"DoNothing", "Near", "Far", "Skills"};
+static const char* AUTON_NAMES[] = {
+  "Red_Left",
+  "Red_Right",
+  "Blue_Left",
+  "Blue_Right",
+  "Skills"
+};
 
 // Number of auton options (computed automatically)
 static constexpr int kAutonCount =
@@ -31,7 +37,6 @@ static constexpr int kAutonCount =
 // this assertion will fail at compile time.
 static_assert(static_cast<int>(AutonRoutine::Skills) == kAutonCount - 1,
               "Update AUTON_NAMES or AutonRoutine enum order!");
-
 
 // Converts a DriveMode enum to a display string.
 const char* selector::drive_mode_name(DriveMode m) {
@@ -110,14 +115,3 @@ void selector::ui_loop_once(Controller & master) {
 // -----------------------------------------------------------------------------
 DriveMode    selector::drive_mode() { return g_mode; }
 AutonRoutine selector::auton()      { return g_auton; }
-
-
-// -----------------------------------------------------------------------------
-// How to extend this file later:
-// -----------------------------------------------------------------------------
-// • Add new AutonRoutine enums in types.hpp, e.g.  CenterRush, Defense, etc.
-// • Append corresponding names to AUTON_NAMES[] in the same order.
-// • The static_assert above ensures you won’t forget to keep them aligned.
-// • You can add more button logic here (e.g. B to go backward through autons).
-// • Avoid loops/delays here — keep this function quick for competition safety.
-// -----------------------------------------------------------------------------
