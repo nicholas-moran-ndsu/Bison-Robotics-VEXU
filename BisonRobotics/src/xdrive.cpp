@@ -12,7 +12,12 @@ _CHK_PORT(PORT_FL1);
 _CHK_PORT(PORT_FR1);
 _CHK_PORT(PORT_BL1);
 _CHK_PORT(PORT_BR1);
-#if XDRIVE_CORNER_MOTORS == 3
+#if XDRIVE_CORNER_MOTORS == 2
+_CHK_PORT(PORT_FL2);
+_CHK_PORT(PORT_FR2);
+_CHK_PORT(PORT_BR2);
+_CHK_PORT(PORT_BL2);
+#elif XDRIVE_CORNER_MOTORS == 3
 _CHK_PORT(PORT_FL2); _CHK_PORT(PORT_FL3);
 _CHK_PORT(PORT_FR2); _CHK_PORT(PORT_FR3);
 _CHK_PORT(PORT_BL2); _CHK_PORT(PORT_BL3);
@@ -27,8 +32,8 @@ namespace xdrive {
 // ================= Config overview =================
 // XDRIVE_CORNER_MOTORS == 1  → 4 total motors (1 per corner)
 // XDRIVE_CORNER_MOTORS == 3  → 12 total motors (3 per corner)
-static_assert(XDRIVE_CORNER_MOTORS == 1 || XDRIVE_CORNER_MOTORS == 3,
-              "XDRIVE_CORNER_MOTORS must be 1 or 3");
+static_assert(XDRIVE_CORNER_MOTORS == 1 || XDRIVE_CORNER_MOTORS == 2 || XDRIVE_CORNER_MOTORS == 3,
+              "XDRIVE_CORNER_MOTORS must be 1, 2, or 3");
 
 // ---------------- MotorGroup helper ----------------
 template <typename MotorT, size_t N>
@@ -69,6 +74,11 @@ struct MotorGroup {
   static pros::Motor mFR1(PORT_FR1), mFR2(PORT_FR2), mFR3(PORT_FR3);
   static pros::Motor mBL1(PORT_BL1), mBL2(PORT_BL2), mBL3(PORT_BL3);
   static pros::Motor mBR1(PORT_BR1), mBR2(PORT_BR2), mBR3(PORT_BR3);
+#elif XDRIVE_CORNER_MOTORS == 2
+  static pros::Motor mFL1(PORT_FL1), mFL2(PORT_FL2);
+  static pros::Motor mFR1(PORT_FR1), mFR2(PORT_FR2);
+  static pros::Motor mBL1(PORT_BL1), mBL2(PORT_BL2);
+  static pros::Motor mBR1(PORT_BR1), mBR2(PORT_BR2);
 #else
   static pros::Motor mFL1(PORT_FL1);
   static pros::Motor mFR1(PORT_FR1);
@@ -85,12 +95,26 @@ using Corner = MotorGroup<pros::Motor, XDRIVE_CORNER_MOTORS>;
   static Corner gFR{{ &mFR1, &mFR2, &mFR3 }};
   static Corner gBL{{ &mBL1, &mBL2, &mBL3 }};
   static Corner gBR{{ &mBR1, &mBR2, &mBR3 }};
+#elif XDRIVE_CORNER_MOTORS == 2
+  static Corner gFL{{ &mFL1, &mFL2 }};
+  static Corner gFR{{ &mFR1, &mFR2 }};
+  static Corner gBL{{ &mBL1, &mBL2 }};
+  static Corner gBR{{ &mBR1, &mBR2 }};
 #else
   static Corner gFL{{ &mFL1 }};
   static Corner gFR{{ &mFR1 }};
   static Corner gBL{{ &mBL1 }};
   static Corner gBR{{ &mBR1 }};
 #endif
+
+static bool g_park = false;
+
+static void set_brake_mode_all(pros::motor_brake_mode_e_t mode) {
+  gFL.each([&](pros::Motor& m){ m.set_brake_mode(mode); });
+  gFR.each([&](pros::Motor& m){ m.set_brake_mode(mode); });
+  gBL.each([&](pros::Motor& m){ m.set_brake_mode(mode); });
+  gBR.each([&](pros::Motor& m){ m.set_brake_mode(mode); });
+}
 
 #if IMU_PORT >= 0 // only compile IMU-related code if IMU_PORT is valid
 
@@ -118,24 +142,31 @@ static inline double expo_scale(int v) {
 // Initialize motors + IMU (call once at startup)
 void initialize() {
   // Gearing & encoders on every motor in each corner
-  gFL.set_gearing(GEARSET); gFR.set_gearing(GEARSET);
-  gBL.set_gearing(GEARSET); gBR.set_gearing(GEARSET);
+  gFL.set_gearing(DRIVE_GEARSET); gFR.set_gearing(DRIVE_GEARSET);
+  gBL.set_gearing(DRIVE_GEARSET); gBR.set_gearing(DRIVE_GEARSET);
 
-  gFL.set_encoder_units(ENCODERS); gFR.set_encoder_units(ENCODERS);
-  gBL.set_encoder_units(ENCODERS); gBR.set_encoder_units(ENCODERS);
-
+  gFL.set_encoder_units(DRIVE_ENCODERS); gFR.set_encoder_units(DRIVE_ENCODERS);
+  gBL.set_encoder_units(DRIVE_ENCODERS); gBR.set_encoder_units(DRIVE_ENCODERS);
   // Per-motor reversals
 #if XDRIVE_CORNER_MOTORS == 3
   mFL1.set_reversed(REVERSED_FL1); mFL2.set_reversed(REVERSED_FL2); mFL3.set_reversed(REVERSED_FL3);
   mFR1.set_reversed(REVERSED_FR1); mFR2.set_reversed(REVERSED_FR2); mFR3.set_reversed(REVERSED_FR3);
   mBL1.set_reversed(REVERSED_BL1); mBL2.set_reversed(REVERSED_BL2); mBL3.set_reversed(REVERSED_BL3);
   mBR1.set_reversed(REVERSED_BR1); mBR2.set_reversed(REVERSED_BR2); mBR3.set_reversed(REVERSED_BR3);
+#elif XDRIVE_CORNER_MOTORS == 2
+  mFL1.set_reversed(REVERSED_FL1); mFL2.set_reversed(REVERSED_FL2);
+  mFR1.set_reversed(REVERSED_FR1); mFR2.set_reversed(REVERSED_FR2);
+  mBL1.set_reversed(REVERSED_BL1); mBL2.set_reversed(REVERSED_BL2);
+  mBR1.set_reversed(REVERSED_BR1); mBR2.set_reversed(REVERSED_BR2);
 #else
   mFL1.set_reversed(REVERSED_FL1);
   mFR1.set_reversed(REVERSED_FR1);
   mBL1.set_reversed(REVERSED_BL1);
   mBR1.set_reversed(REVERSED_BR1);
 #endif
+
+  // Default: coast while driving normally (or BRAKE if you prefer)
+  set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
 
   // IMU calibration (zeroing gyro/accelerometer)
   zero_field_forward();
@@ -179,6 +210,12 @@ void drive(int fwd, int str, int rot, bool field_centric) {
   double df = expo_scale(fwd); // forward
   double ds = expo_scale(str); // strafe
   double dr = expo_scale(rot); // rotate
+
+  // If parked, ignore joystick commands and keep motors "holding"
+  if (g_park) {
+    gFL.move(0); gFR.move(0); gBL.move(0); gBR.move(0);
+    return;
+  }
 
   // Apply field-centric transform
   #ifndef SIM
@@ -277,77 +314,23 @@ void turn_cw_deg(double wheel_deg, int speed) {
   #endif
 }
 
-// ---------- LCD TELEMETRY ----------
+void set_park_enabled(bool enabled) {
+  g_park = enabled;
 
-/*
 #ifndef SIM
-static pros::Task* telemetry_task = nullptr;
+  if (g_park) {
+    // HOLD is the strongest passive “stay put” mode
+    set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
+
+    // Optional: explicitly stop power so it "locks" on current position
+    gFL.move(0); gFR.move(0); gBL.move(0); gBR.move(0);
+  } else {
+    // Back to normal driving feel
+    set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
+  }
 #endif
-
-// Telemetry task: periodically update the LCD with motor voltages + directions
-#ifndef SIM
-static void telemetry_loop(void*) {
-  pros::lcd::initialize(); // safe to call if already initialized
-  while (true) {
-    // Read commanded voltage (mV). Sign indicates direction.
-    const double vFL = gFL.get_voltage();
-    const double vFR = gFR.get_voltage();
-    const double vBL = gBL.get_voltage();
-    const double vBR = gBR.get_voltage();
-
-    // Convert to percent of full scale (~12000 mV on V5)
-    auto pct = [](double mv) {
-      const double p = (mv / 12000.0) * 100.0;
-      // clamp for safety
-      if (p > 100.0) return 100.0;
-      if (p < -100.0) return -100.0;
-      return p;
-    };
-
-    // Direction labels & magnitude
-    const double pFL = pct(vFL), pFR = pct(vFR), pBL = pct(vBL), pBR = pct(vBR);
-    auto dir = [](double p){ return p >= 0 ? "FWD" : "REV"; };
-
-    // Optional: show actual velocity (RPM) to confirm motion
-    const double rFL = gFL.get_actual_velocity();
-    const double rFR = gFR.get_actual_velocity();
-    const double rBL = gBL.get_actual_velocity();
-    const double rBR = gBR.get_actual_velocity();
-
-    // Print to LCD (rows 0–7)
-    pros::lcd::print(0, "X-Drive Telemetry");
-    pros::lcd::print(1, "FL: %4.0f%% %s | %4.0f rpm", fabs(pFL), dir(pFL), rFL);
-    pros::lcd::print(2, "FR: %4.0f%% %s | %4.0f rpm", fabs(pFR), dir(pFR), rFR);
-    pros::lcd::print(3, "BL: %4.0f%% %s | %4.0f rpm", fabs(pBL), dir(pBL), rBL);
-    pros::lcd::print(4, "BR: %4.0f%% %s | %4.0f rpm", fabs(pBR), dir(pBR), rBR);
-
-    // If you only want to show when powered, you could blank lines when |pct| < 1–2%.
-
-    pros::delay(100); // update ~10 Hz
-  }
-}
-#endif
-
-// Start telemetry task (call once at startup)
-void start_telemetry() {
-  #ifndef SIM
-  if (!telemetry_task) {
-    telemetry_task = new pros::Task(telemetry_loop, nullptr, "xdrive-telemetry");
-  }
-  #endif
 }
 
-// Stop telemetry task (call once at shutdown)
-void stop_telemetry() {
-  #ifndef SIM
-  if (telemetry_task) {
-    telemetry_task->remove();
-    delete telemetry_task;
-    telemetry_task = nullptr;
-  }
-  #endif
-}
-
-*/
+bool park_enabled() { return g_park; }
 
 } // namespace xdrive
