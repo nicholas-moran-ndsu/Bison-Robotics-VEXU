@@ -32,6 +32,7 @@ void odom_sys::init_once_for_auton(){
 
   static Odom2WIMU odom(cfg);
   g_odom = &odom;
+  printf("[ODOM] init_once_for_auton: g_odom created\n"); fflush(stdout);
 
   // Optionally flip a sensor if mounted “backwards”
   // g_trackingwheel_par.set_reversed(true);
@@ -40,6 +41,9 @@ void odom_sys::init_once_for_auton(){
   // Initialize last readings
   last_par_deg  = g_trackingwheel_par.get_position();   // degrees (cumulative)
   last_perp_deg = g_trackingwheel_perp.get_position();
+
+  // start terminal printing
+    odom_sys::start_debug();
 }
 
 // Set robot pose (e.g., start tile alignment)

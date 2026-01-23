@@ -26,6 +26,9 @@ void initialize() {
   xdrive::initialize();        // motors + IMU calibration
   selector::init(master);      // bring up the pre-match selector UI
   //xdrive::start_telemetry(); // optional HUD on the Brain
+
+  printf("[INIT] hello from initialize()\n");
+  fflush(stdout);
 }
 
 // ================== Disabled ===================
@@ -74,7 +77,7 @@ void opcontrol() {
     // In-match toggle Field<->Robot with Y
     if (master.get_digital_new_press(E_CONTROLLER_DIGITAL_Y)) {
       drive_mode = (drive_mode == DriveMode::FieldCentric)
-        ? DriveMode::RobotCentric
+        ? DriveMode::Robothttps://github.com/nicholas-moran-ndsu/Bison-Robotics-VEXU/pull/9/conflict?name=BisonRobotics%252Fsrc%252Fodom_sys.cpp&ancestor_oid=2fc298c48ef782f623fc175836851e7a87e3c818&base_oid=4fd144c9f166d469233054a2e350c78e40961c95&head_oid=0a6b47969e4bd54ee5402ec0080287a88014c253Centric
         : DriveMode::FieldCentric;
       master.rumble(".");
     }
@@ -147,7 +150,14 @@ void opcontrol() {
     //xdrive
     xdrive::drive(fwd, str, rot, drive_mode == DriveMode::RobotCentric);
 
-    delay(10);
+    // Optional alive print every 500 ms
+    static int tick = 0;
+    if ((++tick % 50) == 0) { // about every 500 ms
+      printf("[OP] alive t=%u ms\n", (unsigned)pros::millis());
+      fflush(stdout);
+    }
+
+    pros::delay(10);
   }
 }
 

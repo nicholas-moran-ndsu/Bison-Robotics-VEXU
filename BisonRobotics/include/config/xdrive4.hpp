@@ -15,7 +15,7 @@
 #define REVERSED_BR1 true
 
 // ---- Sensors ----
-#define IMU_PORT 16
+#define IMU_PORT 6
 #define TRACKING_WHEEL_PARALLEL_PORT 9
 #define TRACKING_WHEEL_PERPENDICULAR_PORT 12
 
@@ -23,8 +23,8 @@
 #define TRACKING_WHEEL_DIAMETER_IN 2.75     // inches
 #define TRACKING_WHEEL_CIRCUMFERENCE_IN (TRACKING_WHEEL_DIAMETER_IN * M_PI)
 #define TRACKING_TICKS_PER_REV 360.0        // if using shaft encoder
-#define TRACKING_WHEEL_PARALLEL_OFFSET_IN  3.5  // distance from center to parallel wheel (forward +)
-#define TRACKING_WHEEL_PERP_OFFSET_IN      4.25 // distance from center to perpendicular wheel (right +)
+#define TRACKING_WHEEL_PARALLEL_OFFSET_IN  5  // distance from center to parallel wheel (forward +)
+#define TRACKING_WHEEL_PERP_OFFSET_IN      0 // distance from center to perpendicular wheel (right +)
 
 
 // ---- Gearing and encoder units ----
